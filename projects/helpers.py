@@ -1,4 +1,5 @@
 from jenkins.tasks import build_job
+from jenkins.models import Build
 from projects.models import ProjectDependency
 
 
@@ -33,8 +34,13 @@ def build_project(project, user=None, dependencies=None, **kwargs):
     queue_build = kwargs.pop("queue_build", True)
     dependencies = dependencies and dependencies or []
     from projects.models import ProjectBuild, ProjectBuildDependency
-    build = ProjectBuild.objects.create(
-        project=project, requested_by=user)
+
+    automated = kwargs.pop("automated", False)
+
+    options = {"project": project, "requested_by": user}
+    if automated:
+        options["phase"] = Build.FINALIZED
+    build = ProjectBuild.objects.create(**options)
 
     if dependencies:
         filter_args = {"dependency__in": dependencies}
@@ -46,7 +52,6 @@ def build_project(project, user=None, dependencies=None, **kwargs):
     dependencies_not_to_build = ProjectDependency.objects.filter(
         project=project).exclude(pk__in=dependencies_to_build)
 
-    automated = kwargs.pop("automated", False)
     if not automated:
         for dependency in dependencies_to_build.order_by(
                 "dependency__job__pk"):

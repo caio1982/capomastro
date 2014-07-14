@@ -10,11 +10,9 @@ import mock
 
 from archives.models import ArchiveArtifact
 from archives.transports import LocalTransport, SshTransport
-from jenkins.models import Artifact
 from jenkins.tests.factories import ArtifactFactory, BuildFactory
 from projects.helpers import build_project
 from projects.models import ProjectDependency, ProjectBuildDependency
-from projects.tasks import process_build_dependencies
 from projects.tests.factories import ProjectFactory, DependencyFactory
 from .factories import ArchiveFactory
 
@@ -96,21 +94,42 @@ class LocalTransportTest(TestCase):
         filename2 = os.path.join(self.basedir, "temp/temp1.gz")
         self.assertEqual(file(filename2).read(), "This is the artifact")
 
-    def test_link_filename_to_filename_with_preexisting_file(self):
+    def test_link_artifact_to_current(self):
         """
-        If the filename for the destination already exists, then we shouldn't
-        attempt to link the file.
+        Create a link in the parent directory for this artifact,
+        pointing to the directory of the artifact, with the name "current".
         """
         transport = LocalTransport(self.archive)
         fakefile = StringIO("This is the artifact")
 
         transport.archive_file(fakefile, "/temp/temp.gz")
-        transport.link_filename_to_filename("/temp/temp.gz", "/temp/temp.gz")
+        current_dir = transport.link_to_current("/temp/temp.gz")
 
-        filename = os.path.join(self.basedir, "temp/temp.gz")
-        # Test that the number of links to this file is 2
-        # (the original, and the newly created hardlink)
-        self.assertEqual(1, os.stat(filename).st_nlink)
+        self.assertEqual(os.path.join(self.basedir, "current"), current_dir)
+        self.assertTrue(
+            os.path.islink(current_dir), "current is not a symlink")
+        self.assertEqual(
+            os.path.dirname(transport.get_relative_filename("/temp/temp.gz")),
+            os.path.realpath(current_dir))
+
+    def test_link_artifact_to_current_replaces_existing_current(self):
+        """
+        If we run link_artifact_to_current with a new path, it should ensure
+        that the "current" directory is the new one.
+        """
+        transport = LocalTransport(self.archive)
+        fakefile = StringIO("This is the artifact")
+
+        transport.archive_file(fakefile, "/temp1/temp.gz")
+        transport.link_to_current("/temp1/temp.gz")
+
+        fakefile = StringIO("Another artifact")
+        transport.archive_file(fakefile, "/temp2/temp.gz")
+        current_dir = transport.link_to_current("/temp2/temp.gz")
+
+        self.assertEqual(
+            os.path.dirname(transport.get_relative_filename("/temp2/temp.gz")),
+            os.path.realpath(current_dir))
 
 
 class SshTransportTest(TestCase):
@@ -217,4 +236,26 @@ class SshTransportTest(TestCase):
             [mock.call("mkdir -p `dirname /var/tmp/temp2/temp.gz`"),
              mock.call('ln "/var/tmp/temp/temp.gz" "/var/tmp/temp2/temp.gz"')])
 
+        mock_ssh.close.assert_called_once()
+
+    def test_link_artifact_to_current(self):
+        """
+        Create a link in the parent directory for this artifact,
+        pointing to the directory of the artifact, with the name "current".
+        """
+        mock_ssh = mock.Mock()
+        mock_stdout = mock.Mock()
+        mock_ssh.exec_command.return_value = None, mock_stdout, None
+        mock_sftp = mock.Mock()
+
+        transport = SshTransport(self.archive)
+        with mock.patch.object(
+                transport, "_get_ssh_clients",
+                return_value=(mock_ssh, mock_sftp)):
+            transport.start()
+            current_dir = transport.link_to_current("/project/1234/temp.gz")
+        mock_ssh.exec_command.assert_has_calls(
+            [mock.call('cd "/var/tmp/project" && rm -f current '
+                       '&& ln -sf "1234" current')])
+        self.assertEqual("/var/tmp/project/current", current_dir)
         mock_ssh.close.assert_called_once()

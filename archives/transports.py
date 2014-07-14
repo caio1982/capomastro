@@ -51,18 +51,6 @@ class Transport(object):
         """
         return os.path.join(self.archive.basedir, filename.lstrip("/"))
 
-    def archive_url(self, url, destination_path, username, password):
-        """
-        Archives a single fileobj to the destination path.
-        """
-        logging.info("Attempting to archive %s to %s", url, destination_path)
-        request = urllib2.Request(url)
-        request.add_header(
-            "Authorization",
-            "Basic " + base64.b64encode(username + ":" + password))
-        f = urllib2.urlopen(request)
-        return self.archive_file(f, destination_path)
-
     def _run_command(self, command):
         """
         Runs a command on the archive.
@@ -74,6 +62,40 @@ class Transport(object):
         Link a filename to another filename in the transport's backend.
         """
         raise NotImplemented
+
+    def link_to_current(self, path):
+        """
+        Link the path to the "current" directory in the parent directory.
+        """
+        raise NotImplemented
+
+    def _open_url(self, url, username, password):
+        """
+        Opens a URL with the correct authentication header, and returns the
+        file object for the body.
+        """
+        request = urllib2.Request(url)
+        request.add_header(
+            "Authorization",
+            "Basic " + base64.b64encode(username + ":" + password))
+        return urllib2.urlopen(request)
+
+    def archive_file(self, fileobj, filename):
+        """
+        Archives a single artifact from the fileobj to the
+        destination path.
+
+        Returns the number of bytes archived.
+        """
+        raise NotImplemented
+
+    def archive_url(self, url, destination_path, username, password):
+        """
+        Archives a single fileobj to the destination path.
+        """
+        logging.info("Attempting to archive %s to %s", url, destination_path)
+        f = self._open_url(url, username, password)
+        return self.archive_file(f, destination_path)
 
 
 class LocalTransport(Transport):
@@ -116,19 +138,8 @@ class LocalTransport(Transport):
         """
         # TODO: raise exception if the command fails
         logging.debug("Executing %s" % command)
-        subprocess.Popen(command, stdout=subprocess.PIPE, shell=True).stdout.read()
-
-    def archive_url(self, url, destination_path, username, password):
-        """
-        Archives a single fileobj to the destination path.
-        """
-        logging.info("Attempting to archive %s to %s", url, destination_path)
-        request = urllib2.Request(url)
-        request.add_header(
-            "Authorization",
-            "Basic " + base64.b64encode(username + ":" + password))
-        f = urllib2.urlopen(request)
-        return self.archive_file(f, destination_path)
+        return subprocess.Popen(
+            command, stdout=subprocess.PIPE, shell=True).stdout.read()
 
     def link_filename_to_filename(self, source, destination):
         """
@@ -142,6 +153,20 @@ class LocalTransport(Transport):
             os.makedirs(os.path.dirname(destination))
         if not os.path.exists(destination):
             os.link(source, destination)
+
+    def link_to_current(self, path):
+        """
+        Link the path to the "current" directory in the parent directory.
+        """
+        file_dir = os.path.dirname(self.get_relative_filename(path))
+        parent_dir = os.path.abspath(os.path.join(file_dir, ".."))
+        current_dir = os.path.join(parent_dir, "current")
+
+        if os.path.lexists(current_dir):
+            os.unlink(current_dir)
+
+        os.symlink(os.path.relpath(file_dir, parent_dir), current_dir)
+        return current_dir
 
 
 class SshTransport(Transport):
@@ -206,3 +231,14 @@ class SshTransport(Transport):
         # successful or not.
         self._run_command("mkdir -p `dirname %s`" % destination)
         self._run_command("ln \"%s\" \"%s\"" % (source, destination))
+
+    def link_to_current(self, path):
+        """
+        Link the path to the "current" directory in the parent directory.
+        """
+        file_dir = os.path.dirname(self.get_relative_filename(path))
+        parent_dir = os.path.abspath(os.path.join(file_dir, ".."))
+
+        self._run_command('cd "%s" && rm -f current && ln -sf "%s" current' % (
+            parent_dir, os.path.basename(file_dir)))
+        return os.path.join(parent_dir, "current")

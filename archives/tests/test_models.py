@@ -86,8 +86,8 @@ class ArchiveTest(TestCase):
 
     def test_artifact_get_url(self):
         """
-        ArchiveArtifact.get_url should return a valid URL for an artifact within
-        the archive.
+        ArchiveArtifact.get_url should return a valid URL for an artifact
+        within the archive.
         """
         project, dependency = self.create_dependencies()
         ProjectDependency.objects.create(
@@ -98,7 +98,7 @@ class ArchiveTest(TestCase):
         build = BuildFactory.create(
             job=dependency.job, build_id=projectbuild.build_key)
 
-        artifact = ArtifactFactory.create(build=build, filename="file1.gz")
+        ArtifactFactory.create(build=build, filename="file1.gz")
         archive = ArchiveFactory.create(policy="cdimage")
         update_projectbuilds(build)
         create_projectbuilds_for_autotracking(build)
@@ -167,7 +167,8 @@ class ArchiveTest(TestCase):
 
         build2 = BuildFactory.create(
             job=dependency2.job, build_id=projectbuild.build_key)
-        artifact2 = ArtifactFactory.create(build=build2, filename="artifact2.gz")
+        artifact2 = ArtifactFactory.create(
+            build=build2, filename="artifact2.gz")
 
         update_projectbuilds(build2)
         build2_items = archive.add_build(build2)

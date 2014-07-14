@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from datetime import timedelta
 
 from django.test import TestCase
 from django.contrib.auth.models import User
@@ -112,6 +113,41 @@ class ProjectTest(TestCase):
         process_build_dependencies(build2.pk)
 
         self.assertEqual([artifact2], list(project.get_current_artifacts()))
+
+    def test_get_current_projectbuild(self):
+        """
+        Project.get_current_projectbuild returns the most recent ProjectBuild
+        for this project.
+        """
+        project = ProjectFactory.create()
+        dependency1 = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency1)
+
+        dependency2 = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency2)
+
+        from projects.helpers import build_project
+        build1 = build_project(project, queue_build=False)
+        build2 = build_project(project, queue_build=False)
+
+        now = timezone.now()
+        test_data = [
+            (Build.FINALIZED, Build.STARTED, now - timedelta(hours=1), None, build1),
+            (Build.FINALIZED, Build.FINALIZED, now - timedelta(hours=1), now, build2)
+        ]
+
+        for case in test_data:
+            (phase1, phase2, end1, end2, result) = case
+            build1.phase = phase1
+            build1.ended_at = end1
+            build1.save()
+
+            build2.phase = phase2
+            build2.ended_at = end2
+            build2.save()
+            self.assertEqual(result, project.get_current_projectbuild())
 
 
 class ProjectBuildTest(TestCase):

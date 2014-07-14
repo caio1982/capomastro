@@ -12,7 +12,7 @@ class ArchiveFactory(factory.DjangoModelFactory):
 
     name = factory.Sequence(lambda n: "Archive %d" % n)
     host = "archive.example.com"
-    policy = "default"
+    policy = "cdimage"
     basedir = "/var/tmp"
     username = "testing"
     ssh_credentials = factory.SubFactory(SshKeyPairFactory)
