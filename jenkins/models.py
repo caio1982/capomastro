@@ -67,6 +67,9 @@ class Build(models.Model):
     COMPLETED = 'COMPLETED'
     FINALIZED = 'FINALIZED'
 
+    # Console log tail size
+    CONSOLE_TAIL_LINES = 20
+
     job = models.ForeignKey(Job)
     build_id = models.CharField(max_length=255)
     number = models.IntegerField()
@@ -93,6 +96,19 @@ class Build(models.Model):
         if phase == "FINISHED":
             return Build.FINALIZED
         return phase
+
+    @property
+    def console_log_summary(self):
+        """
+        The console log can get long for some builds and increase the time it
+        takes to render the page. This summary provides a truncated version of
+        the log.
+        """
+        if not self.console_log:
+            return self.console_log
+
+        log = self.console_log.splitlines()[-self.CONSOLE_TAIL_LINES:]
+        return "\n".join(log)
 
 
 @python_2_unicode_compatible

@@ -46,6 +46,30 @@ class BuildTest(TestCase):
         self.assertEquals(Build.COMPLETED, 'COMPLETED')
         self.assertEquals(Build.FINALIZED, 'FINALIZED')
 
+    def test_console_log_summary(self):
+        """
+        Builds should have long console logs shortened to display the last n
+        lines (where n is defined in CONSOLE_TAIL_LINES).
+        """
+        build = BuildFactory.create()
+
+        # Check that an empty log is handled
+        self.assertEquals(build.console_log, None)
+        self.assertEquals(build.console_log_summary, None)
+
+        # Create a short console log (less lines than CONSOLE_TAIL_LINES)
+        short_log = "This is a single line\n".join(
+            ["" for x in range(Build.CONSOLE_TAIL_LINES - 5)])
+        build.console_log = short_log
+        self.assertEquals(build.console_log_summary + "\n", short_log)
+
+        # Create a longer console log (greater than CONSOLE_TAIL_LINES lines).
+        long_log = "This is a single line\n".join(
+            ["" for x in range(Build.CONSOLE_TAIL_LINES * 3)])
+        build.console_log = long_log
+        self.assertEquals(len(build.console_log_summary.splitlines()),
+                          Build.CONSOLE_TAIL_LINES)
+
 
 class JobTypeTest(TestCase):
 

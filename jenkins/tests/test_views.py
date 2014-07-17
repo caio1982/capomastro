@@ -360,3 +360,16 @@ class BuildDetailTest(WebTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(
             build, response.context["build"])
+
+    def test_build_detail_console(self):
+        """
+        The build console view should render the console log for the build.
+        """
+        build = BuildFactory.create()
+        build_url = reverse(
+            "build_detail_console", kwargs={"pk": build.pk})
+        response = self.app.get(build_url, user="testing")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            build, response.context["build"])
