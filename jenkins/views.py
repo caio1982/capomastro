@@ -128,7 +128,14 @@ class BuildDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
+class BuildDetailConsoleView(LoginRequiredMixin, DetailView):
+
+    model = Build
+    context_object_name = "build"
+    template_name = "jenkins/build_detail_console.html"
+
+
 __all__ = [
     "NotificationHandlerView", "JenkinsServerListView",
     "JenkinsServerDetailView", "JenkinsServerJobBuildsIndexView",
-    "JobTypeDetailView", "BuildDetailView"]
+    "JobTypeDetailView", "BuildDetailView", "BuildDetailConsoleView"]

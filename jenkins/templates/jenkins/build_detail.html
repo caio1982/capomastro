@@ -40,7 +40,8 @@
 
   <div class="row">
     <h3>Console</h3>
-    <pre>{{ build.console_log }}</pre>
+    <pre>{{ build.console_log_summary }}</pre>
+    <a href="{% url 'build_detail_console' pk=build.pk %}" class="btn btn-default" title="Full console log">...</a>
   </div>
 
 </div>

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load bootstrap3 %}
+{% load jenkins_tags %}
+
+{% block page_title %}Build {{ build.number }} {{ build.build_id }} Console{% endblock %}
+{% block page_class %}build{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div>
+      <h2><a href="{% url 'build_detail' pk=build.pk %}">Build {{ build.number }} {{ build.build_id }}</a></h2>
+    </div>
+  </div>
+
+  <div class="row">
+    <h3>Console</h3>
+    <pre>{{ build.console_log }}</pre>
+  </div>
+
+</div>
+{% endblock %}
