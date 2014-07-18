@@ -1,3 +1,5 @@
+from django.core.paginator import (
+    Paginator, EmptyPage, PageNotAnInteger)
 from django.shortcuts import get_object_or_404
 from django.views.generic import (
     CreateView, ListView, DetailView, FormView, UpdateView, DeleteView)
@@ -191,8 +193,29 @@ class DependencyListView(LoginRequiredMixin, ListView):
 
 class DependencyDetailView(LoginRequiredMixin, DetailView):
 
+    PAGINATE_BUILDS = 5
     context_object_name = "dependency"
     model = Dependency
+
+    def paginate_builds(self, context, page):
+        """
+        Paginate the builds list so it returns n at a time (n is defined in
+        PAGINATE_BUILDS).
+        :param context: the context data
+        :param page: the requested page number
+        """
+        builds_list = Build.objects.filter(job=context["dependency"].job)
+        paginator = Paginator(builds_list, self.PAGINATE_BUILDS)
+
+        try:
+            builds = paginator.page(page)
+        except PageNotAnInteger:
+            # If page is not an integer, send the first page.
+            builds = paginator.page(1)
+        except EmptyPage:
+            # If page is out of range, send the last page of results.
+            builds = paginator.page(paginator.num_pages)
+        return builds
 
     def get_context_data(self, **kwargs):
         """
@@ -200,8 +223,9 @@ class DependencyDetailView(LoginRequiredMixin, DetailView):
         """
         context = super(
             DependencyDetailView, self).get_context_data(**kwargs)
-        context["builds"] = Build.objects.filter(
-            job=context["dependency"].job)
+
+        context["builds"] = self.paginate_builds(
+            context=context, page=self.request.GET.get('page'))
         context["projects"] = Project.objects.filter(
             dependencies=context["dependency"])
         if context["dependency"].is_building:

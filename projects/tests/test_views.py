@@ -23,6 +23,7 @@ from archives.tests.factories import ArchiveFactory
 # requires various permissions...
 # Possibly, through looking to see if Views are mixed in with the various
 # Django-Braces mixins.
+from projects.views import DependencyDetailView
 
 
 class ProjectDetailTest(WebTest):
@@ -359,7 +360,7 @@ class DependencyDetailTest(WebTest):
 
     def test_dependency_build(self):
         """
-        It's possible to request a build of a dependency from the dependendency
+        It's possible to request a build of a dependency from the dependency
         detail page.
         """
         dependency = DependencyFactory.create()
@@ -401,6 +402,90 @@ class DependencyDetailTest(WebTest):
         build_job_mock.delay.assert_called_once_with(
             dependency.job.pk, params={"TESTPARAMETER": "500"},
             user=self.user.username)
+
+    def test_dependency_build_pagination(self):
+        """
+        The dependency build list should return maximum number records as
+        defined in PAGINATE_BUILDS. The previous page link should be
+        disabled and the next page link should be available.
+        """
+        dependency = DependencyFactory.create()
+        BuildFactory.create_batch(
+            DependencyDetailView.PAGINATE_BUILDS + 1, job=dependency.job)
+
+        depend_url = reverse("dependency_detail", kwargs={"pk": dependency.pk})
+        response = self.app.get(depend_url, user="testing")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["builds"]),
+                         DependencyDetailView.PAGINATE_BUILDS)
+        self.assertEqual(response.context["builds"].number, 1)
+
+        # Check that the 'Newer' link is disabled
+        self.assertRaises(IndexError, response.click, "Newer")
+
+        # Check that the 'Older' link takes us to page two
+        older = response.click("Older")
+        self.assertEqual(200, older.status_code)
+        self.assertNotEquals(older, response)
+        self.assertEqual(older.context["builds"].number, 2)
+
+    def test_dependency_build_pagination_page_two(self):
+        """
+        The dependency build list should return 1 record when retrieving the
+        second page.
+        """
+        dependency = DependencyFactory.create()
+        BuildFactory.create_batch(
+            DependencyDetailView.PAGINATE_BUILDS + 1, job=dependency.job)
+
+        depend_url = reverse("dependency_detail", kwargs={"pk": dependency.pk})
+        depend_url += "?page=2"
+        response = self.app.get(depend_url, user="testing")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["builds"]), 1)
+        self.assertEqual(response.context["builds"].number, 2)
+
+        # Check that the 'Older' link is disabled
+        self.assertRaises(IndexError, response.click, "Older")
+
+        # Check that the 'newer' link takes us to page one
+        newer = response.click("Newer")
+        self.assertEqual(200, newer.status_code)
+        self.assertNotEquals(newer, response)
+        self.assertEqual(newer.context["builds"].number, 1)
+
+    def test_dependency_build_pagination_page_non_numeric(self):
+        """
+        The dependency build list should return page 1 when a non-numeric
+        page is supplied.
+        """
+        dependency = DependencyFactory.create()
+        BuildFactory.create_batch(
+            DependencyDetailView.PAGINATE_BUILDS + 1, job=dependency.job)
+
+        depend_url = reverse("dependency_detail", kwargs={"pk": dependency.pk})
+        depend_url += "?page=abc"
+        response = self.app.get(depend_url, user="testing")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["builds"]),
+                         DependencyDetailView.PAGINATE_BUILDS)
+        self.assertEqual(response.context["builds"].number, 1)
+
+    def test_dependency_build_pagination_page_invalid(self):
+        """
+        The dependency build list should return the last page when an out-of-
+        range number is supplied.
+        """
+        dependency = DependencyFactory.create()
+        BuildFactory.create_batch(
+            DependencyDetailView.PAGINATE_BUILDS + 1, job=dependency.job)
+
+        depend_url = reverse("dependency_detail", kwargs={"pk": dependency.pk})
+        depend_url += "?page=999"
+        response = self.app.get(depend_url, user="testing")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["builds"]), 1)
+        self.assertEqual(response.context["builds"].number, 2)
 
 
 class DependencyUpdateTest(WebTest):

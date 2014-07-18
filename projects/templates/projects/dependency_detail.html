@@ -61,6 +61,18 @@
         {% endfor %}
       </tbody>
     </table>
+    <ul class="pager">
+        {% if builds.has_previous %}
+        <li><a href="?page={{ builds.previous_page_number }}">&larr; Newer</a></li>
+        {% else %}
+        <li class="disabled"><a>&larr; Newer</a></li>
+        {% endif %}
+        {% if builds.has_next %}
+        <li><a href="?page={{ builds.next_page_number }}">Older &rarr;</a></li>
+        {% else %}
+        <li class="disabled"><a>&rarr; Older</a></li>
+        {% endif %}
+    </ul>
   </div>
   <div class="row">
     <h3>Projects</h3>
