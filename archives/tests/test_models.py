@@ -100,7 +100,6 @@ class ArchiveTest(TestCase):
 
         artifact = ArtifactFactory.create(build=build, filename="file1.gz")
         archive = ArchiveFactory.create(policy="cdimage")
-
         update_projectbuilds(build)
         create_projectbuilds_for_autotracking(build)
         archive.add_build(build)
