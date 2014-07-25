@@ -5,7 +5,6 @@ from django_webtest import WebTest
 import mock
 
 from jenkins.models import Job, Build
-from jenkins.tasks import delete_job_from_jenkins
 from jenkins.tests.factories import (
     BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory,
     job_with_parameters, ArtifactFactory)
@@ -160,6 +159,8 @@ class ProjectCreateTest(WebTest):
         project_url = reverse("project_create")
         response = self.app.get(project_url, user="testing")
         form = response.forms["project"]
+        self.assertTrue(
+            form["auto_track"].value, "auto_track not defaulting to True")
         form["dependencies"].select_multiple(
             [self.dependency1.pk, self.dependency2.pk])
         form["name"].value = "My Project"
@@ -170,7 +171,7 @@ class ProjectCreateTest(WebTest):
         dependencies = ProjectDependency.objects.filter(project=project)
 
         self.assertEqual(
-            [False, False],
+            [True, True],
             list(dependencies.values_list("auto_track", flat=True)))
         self.assertEqual(
             set([self.dependency1.name, self.dependency2.name]),
@@ -637,9 +638,9 @@ class DependencyUpdateTest(WebTest):
         response = self.app.get(url, user="testing")
 
         self.assertEqual([
-              {"name": "BRANCH_TO_CHECKOUT",
-               "description": "Branch to checkout and build.",
-               "defaultValue": "http:///launchpad.net/mybranch"}],
+            {"name": "BRANCH_TO_CHECKOUT",
+             "description": "Branch to checkout and build.",
+             "defaultValue": "http:///launchpad.net/mybranch"}],
             response.context["parameters"])
 
 
@@ -751,10 +752,10 @@ class ProjectUpdateTest(WebTest):
         # TODO: We should assert that requests without a logged in user
         # get redirected to login.
 
-    def test_project_update(self):
+    def test_project_update_dependencies(self):
         """
-        The update view should allow us to change the auto track status of the
-        dependencies and add additional dependencies.
+        The update view should allow us to change the dependencies associated
+        with a project.
         """
         project = ProjectFactory.create()
         # TODO: Work out how to configure DjangoFactory to setup m2m through
@@ -780,6 +781,37 @@ class ProjectUpdateTest(WebTest):
         form.submit().follow()
 
         self.assertEqual(1, len(project.dependencies.all()))
+
+    def test_project_update_auto_track_status(self):
+        """
+        The update view should allow us to change the auto_track status.
+        """
+        project = ProjectFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=DependencyFactory.create(),
+            auto_track=False)
+
+        ProjectDependency.objects.create(
+            project=project, dependency=DependencyFactory.create(),
+            auto_track=False)
+
+        self.assertEqual(
+            [False, False],
+            list(project.dependencies.all().values_list(
+                "projectdependency__auto_track", flat=True)))
+
+        project_url = reverse("project_update", kwargs={"pk": project.pk})
+        response = self.app.get(project_url, user="testing")
+        self.assertEqual(200, response.status_code)
+
+        form = response.forms["project"]
+        form["auto_track"].value = True
+        form.submit().follow()
+
+        self.assertEqual(
+            [True, True],
+            list(project.dependencies.all().values_list(
+                "projectdependency__auto_track", flat=True)))
 
 
 class ProjectDependenciesTest(WebTest):
