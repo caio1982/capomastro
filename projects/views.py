@@ -12,7 +12,7 @@ from braces.views import (
 from archives.models import ArchiveArtifact
 
 from jenkins.models import Build
-from jenkins.tasks  import delete_job_from_jenkins
+from jenkins.tasks import delete_job_from_jenkins
 from jenkins.utils import parse_parameters_from_job
 from projects.models import (
     Project, Dependency, ProjectDependency, ProjectBuild,
@@ -36,6 +36,15 @@ class ProjectCreateView(
 
     def get_success_url(self):
         return reverse("project_detail", kwargs={"pk": self.object.pk})
+
+    def get_initial(self):
+        """
+        We need to default the auto_track to True because we add it to the form
+        in the form definition.
+        """
+        initial = super(ProjectCreateView, self).get_initial()
+        initial["auto_track"] = True
+        return initial
 
 
 class ProjectListView(LoginRequiredMixin, ListView):
@@ -193,11 +202,11 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
         Return an archived artifact in a standard format for display.
         """
         return {
-            'build_name': "%s %s" % (archived_item.build.job,
+            "build_name": "%s %s" % (archived_item.build.job,
                                      archived_item.build.number),
-            'filename': archived_item.artifact.filename,
-            'url': archived_item.get_url(),
-            'archived': True,
+            "filename": archived_item.artifact.filename,
+            "url": archived_item.get_url(),
+            "archived": True,
         }
 
     @staticmethod
@@ -206,10 +215,11 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
         Return an artifact in a standard format for display.
         """
         return {
-            'build_name': "%s %s" % (artifact.build.job, artifact.build.number),
-            'filename': artifact.filename,
-            'url': artifact.url,
-            'archived': False,
+            "build_name": "%s %s" % (
+                artifact.build.job, artifact.build.number),
+            "filename": artifact.filename,
+            "url": artifact.url,
+            "archived": False,
         }
 
 
@@ -340,7 +350,7 @@ class DependencyUpdateView(
 
 
 class DependencyDeleteView(
-    LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
+        LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
 
     permission_required = "projects.delete_dependency"
     model = Dependency
@@ -349,7 +359,7 @@ class DependencyDeleteView(
         response = super(DependencyDeleteView, self).delete(
             request, *args, **kwargs)
         messages.add_message(
-        self.request, messages.INFO,
+            self.request, messages.INFO,
             "Dependency '%s' deleted." % self.object.name)
         delete_job_from_jenkins.delay(self.object.job.pk)
         return response

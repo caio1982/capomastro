@@ -31,12 +31,18 @@ class ProjectForm(forms.ModelForm):
             ProjectDependency.objects.get(
                 project=project, dependency=dependency).delete()
 
+        auto_track = self.data.get("auto_track", False)
+        # Set remaining dependencies for this project to use the auto_track
+        # value requested.
+        ProjectDependency.objects.filter(
+            project=project).update(auto_track=auto_track)
+
         # TODO: This probably shouldn't use the get_current_build if
         # auto_track=False
         for dependency in dependencies_to_add:
             ProjectDependency.objects.create(
                 project=project, dependency=dependency,
-                auto_track=self.data.get("auto_track", False),
+                auto_track=auto_track,
                 current_build=dependency.get_current_build())
         return project
 
