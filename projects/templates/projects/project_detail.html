@@ -44,15 +44,21 @@
         <tr>
           <th>Build</th>
           <th>Filename</th>
-          <th>URL</th>
+          <th>Download</th>
         </tr>
       </thead>
       <tbody>
-        {% for artifact in project.get_current_artifacts %}
-        <tr>
-          <td>{{ artifact.build }}</td>
-          <td>{{ artifact.filename }}</td>
-          <td><a href="{{ artifact.url }}">{{ artifact.url }}</a></td>
+        {% for item in current_artifacts %}
+        <tr {% if not item.archived %}title="{{ item.filename }} has not been archived"{% endif %}>
+          <td>{{ item.build_name }}</td>
+          <td>{{ item.filename }}</td>
+          <td>
+            {% if item.archived %}
+              <a title="Download {{ item.filename }} from archive" href="{{ item.url }}" class="btn btn-primary"><span class="glyphicon glyphicon-download"></span></a>
+            {% else %}
+              <a title="Download {{ item.filename }} from Jenkins" href="{{ item.url }}" class="btn btn-default"><span class="glyphicon glyphicon-download"></span></a>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

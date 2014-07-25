@@ -53,9 +53,11 @@
       <tbody>
         {% for item in archived_items %}
         <tr>
-          <td>{{ item.artifact.build }}</td>
+          <td>{{ item.artifact.build.job }} {{ item.artifact.build.number }}</td>
           <td>{{ item.artifact.filename }}</td>
-          <td><a href="{{ item.get_url }}">{{ item.get_url }}</a></td>
+          <td>
+              <a title="Download {{ item.artifact.filename }} from archive" href="{{ item.get_url }}" class="btn btn-primary"><span class="glyphicon glyphicon-download"></span></a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

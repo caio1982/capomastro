@@ -112,6 +112,13 @@ class Project(models.Model):
             current_builds.append(dependency.current_build)
         return Artifact.objects.filter(build__in=current_builds)
 
+    def get_current_projectbuild(self):
+        """
+        Return the most recent FINALIZED ProjectBuild for this project.
+        """
+        return ProjectBuild.objects.filter(project=self,
+            phase=Build.FINALIZED).order_by("-ended_at").first()
+
     def __str__(self):
         return self.name
 

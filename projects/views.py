@@ -9,6 +9,7 @@ from django.http import HttpResponseRedirect
 
 from braces.views import (
     LoginRequiredMixin, PermissionRequiredMixin, FormValidMessageMixin)
+from archives.models import ArchiveArtifact
 
 from jenkins.models import Build
 from jenkins.tasks  import delete_job_from_jenkins
@@ -167,7 +168,49 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
             project=context["project"])
         context["projectbuilds"] = ProjectBuild.objects.filter(
             project=context["project"]).order_by("-build_id")[:5]
+
+        items = []
+        # Get the artifacts for the current project build
+        current_projectbuild = context["project"].get_current_projectbuild()
+        if current_projectbuild:
+            # Get the archived artifacts
+            archived_item_query = ArchiveArtifact.objects.filter(
+                projectbuild_dependency__projectbuild=current_projectbuild)
+            for archived_item in archived_item_query.all():
+                    items.append(
+                        self.item_from_archived_artifact(archived_item))
+
+            # Get the unarchived artifacts
+            if len(items) == 0:
+                for artifact in current_projectbuild.get_current_artifacts():
+                    items.append(self.item_from_artifact(artifact))
+        context["current_artifacts"] = items
         return context
+
+    @staticmethod
+    def item_from_archived_artifact(archived_item):
+        """
+        Return an archived artifact in a standard format for display.
+        """
+        return {
+            'build_name': "%s %s" % (archived_item.build.job,
+                                     archived_item.build.number),
+            'filename': archived_item.artifact.filename,
+            'url': archived_item.get_url(),
+            'archived': True,
+        }
+
+    @staticmethod
+    def item_from_artifact(artifact):
+        """
+        Return an artifact in a standard format for display.
+        """
+        return {
+            'build_name': "%s %s" % (artifact.build.job, artifact.build.number),
+            'filename': artifact.filename,
+            'url': artifact.url,
+            'archived': False,
+        }
 
 
 class DependencyCreateView(

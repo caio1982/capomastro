@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django_webtest import WebTest
 import mock
 
-from jenkins.models import Job
+from jenkins.models import Job, Build
 from jenkins.tasks import delete_job_from_jenkins
 from jenkins.tests.factories import (
     BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory,
@@ -23,7 +23,7 @@ from archives.tests.factories import ArchiveFactory
 # requires various permissions...
 # Possibly, through looking to see if Views are mixed in with the various
 # Django-Braces mixins.
-from projects.views import DependencyDetailView
+from projects.views import DependencyDetailView, ProjectDetailView
 
 
 class ProjectDetailTest(WebTest):
@@ -58,6 +58,85 @@ class ProjectDetailTest(WebTest):
         self.assertEqual(
             sorted(projectbuilds[1:], key=lambda x: x.build_id, reverse=True),
             list(response.context["projectbuilds"]))
+
+    def test_project_detail_artifacts(self):
+        """
+        The project detail should return artifacts with the URL from Jenkins or
+        from the archive (for archived artifacts).
+        """
+        project = ProjectFactory.create()
+        dependency = DependencyFactory.create()
+        ProjectDependency.objects.create(project=project, dependency=dependency)
+
+        projectbuild = build_project(project, queue_build=False)
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_key,
+            phase=Build.FINALIZED)
+
+        artifact = ArtifactFactory.create(build=build, filename="file1.gz")
+        process_build_dependencies(build.pk)
+
+        # The project detail should link to the artifact from Jenkins
+        project_url = reverse("project_detail", kwargs={"pk": project.pk})
+        response = self.app.get(project_url, user="testing")
+        self.assertEqual(200, response.status_code)
+        self.assertIsNotNone(
+            response.context["project"].get_current_projectbuild())
+        self.assertEqual(
+            [ProjectDetailView.item_from_artifact(artifact)],
+            response.context["current_artifacts"])
+
+        # Archive the artifact and the view should display the archived item
+        archive = ArchiveFactory.create(policy="cdimage", default=True)
+        items = []
+        for x in archive.add_build(build)[artifact]:
+            if x.projectbuild_dependency:
+                items.append(ProjectDetailView.item_from_archived_artifact(x))
+
+        project_url = reverse("project_detail", kwargs={"pk": project.pk})
+        response = self.app.get(project_url, user="testing")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(items, response.context["current_artifacts"])
+
+    def test_item_from_artifact_and_archived_artifact(self):
+        """
+        Return an artifact or archived artifact in a standard format for
+        display.
+        """
+        project = ProjectFactory.create()
+        dependency = DependencyFactory.create()
+        ProjectDependency.objects.create(project=project, dependency=dependency)
+
+        projectbuild = build_project(project, queue_build=False)
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_key,
+            phase=Build.FINALIZED)
+
+        # Create the artifact and check the display format
+        artifact = ArtifactFactory.create(build=build, filename="file1.gz")
+        artifact_item = ProjectDetailView.item_from_artifact(artifact)
+        self.assertIsNotNone(artifact_item)
+        self.assertTrue(isinstance(artifact_item, dict))
+        self.assertTrue("build_name" in artifact_item)
+        self.assertTrue("filename" in artifact_item)
+        self.assertTrue("url" in artifact_item)
+        self.assertTrue("archived" in artifact_item)
+
+        # Archive the artifact and check the display format
+        process_build_dependencies(build.pk)
+        archive = ArchiveFactory.create(policy="cdimage", default=True)
+        items = []
+        for x in archive.add_build(build)[artifact]:
+            if x.projectbuild_dependency:
+                items.append(x)
+        self.assertEquals(len(items), 1)
+        archived_item = ProjectDetailView.item_from_archived_artifact(items[0])
+        self.assertIsNotNone(archived_item)
+        self.assertTrue(isinstance(archived_item, dict))
+        self.assertTrue("build_name" in archived_item)
+        self.assertTrue("filename" in archived_item)
+        self.assertTrue("url" in archived_item)
+        self.assertTrue("archived" in archived_item)
 
 
 class ProjectCreateTest(WebTest):
