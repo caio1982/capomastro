@@ -9,6 +9,21 @@ from archives.models import ArchiveArtifact
 from jenkins.models import Build
 
 
+def link_to_current_if_required(projectbuild, item, transport):
+    """
+    If this build is a projectbuild build, then we should link the current
+    projectbuild to the "current" directory.
+
+    If this build is not a projectbuild, it's safe to link the current directory
+    after this build.
+    """
+    if projectbuild:
+        if projectbuild.phase == Build.FINALIZED:
+            transport.link_to_current(item.archived_path)
+    else:
+        transport.link_to_current(item.archived_path)
+
+
 @shared_task
 def archive_artifact_from_jenkins(archiveartifact_pk):
     """
@@ -19,12 +34,19 @@ def archive_artifact_from_jenkins(archiveartifact_pk):
 
     transport = item.archive.get_transport()
     artifact = item.artifact
+
+    projectbuild = (item.projectbuild_dependency and
+                    item.projectbuild_dependency.projectbuild)
+
     server = artifact.build.job.server
     transport.start()
     logging.info("  %s -> %s", artifact.url, item.archived_path)
     size = transport.archive_url(
         item.artifact.url, item.archived_path,
         username=server.username, password=server.password)
+
+    link_to_current_if_required(projectbuild, item, transport)
+
     transport.end()
     item.archived_at = timezone.now()
     item.archived_size = size
@@ -40,6 +62,9 @@ def link_artifact_in_archive(source_pk, destination_pk):
     """
     destination = ArchiveArtifact.objects.get(pk=destination_pk)
     source = ArchiveArtifact.objects.get(pk=source_pk)
+
+    projectbuild = (destination.projectbuild_dependency and
+                    destination.projectbuild_dependency.projectbuild)
     logging.info("Archiving %s in archive %s", destination, source.archive)
 
     transport = source.archive.get_transport()
@@ -48,6 +73,9 @@ def link_artifact_in_archive(source_pk, destination_pk):
 
     transport.link_filename_to_filename(
         source.archived_path, destination.archived_path)
+
+    link_to_current_if_required(projectbuild, destination, transport)
+
     transport.end()
     destination.archived_at = timezone.now()
     destination.archived_size = source.archived_size
