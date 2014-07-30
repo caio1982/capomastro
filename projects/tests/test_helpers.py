@@ -87,6 +87,66 @@ class BuildProjectTest(TestCase):
         new_build = build_project(project, user=user, queue_build=False)
         self.assertEqual(user, new_build.requested_by)
 
+    def test_build_project_automated_non_autotracked(self):
+        """
+        For automated, non-autotracked builds, each of the projectbuild
+        dependencies created should use the current build of the dependency.
+        """
+        project = ProjectFactory.create()
+        dependency1 = DependencyFactory.create()
+        project_dep1 = ProjectDependency.objects.create(
+            project=project, dependency=dependency1,
+            current_build=BuildFactory.create())
+
+        dependency2 = DependencyFactory.create()
+        project_dep2 = ProjectDependency.objects.create(
+            project=project, dependency=dependency2,
+            current_build=BuildFactory.create())
+
+        new_build = build_project(project, automated=True)
+
+        build_dependencies = ProjectBuildDependency.objects.filter(
+            projectbuild=new_build)
+        self.assertEqual(2, build_dependencies.count())
+
+        self.assertEqual(
+            [dependency1, dependency2],
+            [x.dependency for x in build_dependencies])
+
+        self.assertEqual(
+            [project_dep1.current_build, project_dep2.current_build],
+            [x.build for x in build_dependencies])
+
+    def test_build_project_automated_autotracked_dependencies(self):
+        """
+        For autotracked dependencies, we should use the most recent
+        projectbuild to find the builds for associating with the new
+        projectbuild.
+        """
+        project = ProjectFactory.create()
+        dependency1 = DependencyFactory.create()
+        project_dep1 = ProjectDependency.objects.create(
+            project=project, dependency=dependency1,
+            current_build=BuildFactory.create())
+
+        dependency2 = DependencyFactory.create()
+        project_dep2 = ProjectDependency.objects.create(
+            project=project, dependency=dependency2,
+            current_build=BuildFactory.create())
+
+        build1 = build_project(project, automated=True)
+
+        # We store the current built dependency for dependency2 because we're
+        # going to build dependency1.
+        built_dependency1 = ProjectBuildDependency.objects.get(
+            projectbuild=build1, dependency=dependency2)
+
+        build2 = build_project(project, dependencies=[dependency1], automated=True)
+
+        built_dependency2 = ProjectBuildDependency.objects.get(
+            projectbuild=build2, dependency=dependency2)
+        self.assertEqual(built_dependency2.build, built_dependency1.build)
+
 
 class BuildDependencyTest(TestCase):
 

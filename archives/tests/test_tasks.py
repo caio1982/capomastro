@@ -55,6 +55,7 @@ class LoggingTransport(Transport):
         self.log.append(
             "Link %s to %s" % (source, destination))
 
+
 class LocalArchiveTestBase(TestCase):
 
     def setUp(self):
@@ -388,7 +389,7 @@ class ProcessBuildArtifactsTaskTest(TestCase):
                 u"Artifact %s")
             with mock.patch(
                     "archives.tasks.archive_artifact_from_jenkins"
-                        ) as archive_task:
+                    ) as archive_task:
                 with mock.patch(
                         "archives.tasks.link_artifact_in_archive"
                         ) as link_task:
@@ -457,7 +458,7 @@ class LinkArtifactInArchiveTaskTest(LocalArchiveTestBase):
             project=project, dependency=dependency2)
 
         projectbuild = build_project(project, queue_build=False)
-        build1 = BuildFactory.create(
+        BuildFactory.create(
             job=dependency1.job, build_id=projectbuild.build_key,
             phase=Build.STARTED)
         build2 = BuildFactory.create(
@@ -526,7 +527,8 @@ class LinkArtifactInArchiveTaskTest(LocalArchiveTestBase):
                 Archive, "get_transport", return_value=transport):
             link_artifact_in_archive(item1.pk, item2.pk)
 
-        # Both builds are complete, we expect this to be made the current build.
+        # Both builds are complete, we expect this to be made the current
+        # build.
         self.assertEqual(
             ["START",
              "Link %s to %s" % (item1.archived_path, item2.archived_path),

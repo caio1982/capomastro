@@ -29,12 +29,6 @@ class Transport(object):
         Finalize the archiving.
         """
 
-    def archive_file(self, fileobj, destination_path):
-        """
-        Archives a single fileobj to the destination path.
-        """
-        raise NotImplemented
-
     def generate_checksums(self, archived_artifact):
         """
         Generates checksum files for the specified artifact on the archive.

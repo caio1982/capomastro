@@ -207,6 +207,8 @@ class ProcessBuildDependenciesTest(TestCase):
                                          dependency=dependency)
 
         projectbuild = build_project(project1, queue_build=False)
+        projectbuild.phase == Build.FINALIZED
+        projectbuild.save()
 
         build = BuildFactory.create(
             job=dependency.job, build_id=projectbuild.build_key)

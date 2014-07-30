@@ -24,6 +24,9 @@ def build_project(project, user=None, dependencies=None, **kwargs):
     """
     Given a build, schedule building each of its dependencies.
 
+    If dependencies is a list of ProjectDependencies, then these will be built,
+    and the rest of the project's dependencies will not.
+
     if queue_build parameter is False, then don't actually do the builds, just
     create the ProjectBuildDependencies for the project.
 
@@ -40,6 +43,8 @@ def build_project(project, user=None, dependencies=None, **kwargs):
     options = {"project": project, "requested_by": user}
     if automated:
         options["phase"] = Build.FINALIZED
+
+    previous_build = project.get_current_projectbuild()
     build = ProjectBuild.objects.create(**options)
 
     if dependencies:
@@ -65,11 +70,29 @@ def build_project(project, user=None, dependencies=None, **kwargs):
     # If it's automated, then we create a ProjectBuildDependency for each
     # dependency of the project and prepopulate it with the last known build.
     if automated:
-        dependencies_not_to_build = dependencies_to_build
+        remaining_builds = list(dependencies_not_to_build) + list(
+            dependencies_to_build)
+    else:
+        remaining_builds = dependencies_not_to_build
 
-    for dependency in dependencies_not_to_build:
+    for dependency in remaining_builds:
+        last_known_build = get_last_build_for_dependency(
+            dependency, previous_build)
         kwargs = {"projectbuild": build,
                   "dependency": dependency.dependency,
-                  "build": dependency.current_build}
+                  "build": last_known_build}
         ProjectBuildDependency.objects.create(**kwargs)
     return build
+
+
+def get_last_build_for_dependency(dependency, previous_build=None):
+    """
+    Return the last known build for the provided ProjectDependency dependency,
+    which is defined as the current build associated with itself if it's not
+    auto-tracked, or the most recent build for auto-tracked cases.
+    """
+    if dependency.auto_track:
+        if previous_build:
+            return previous_build.build_dependencies.filter(
+                projectdependency=dependency).first()
+    return dependency.current_build
