@@ -1,12 +1,15 @@
 import logging
+import urlparse
 
 from django.utils import timezone
+from django.contrib.sites.models import Site
 
 from celery.utils.log import get_task_logger
 from celery import shared_task
 
 from projects.helpers import build_project
 from projects.models import ProjectBuildDependency
+from projects.models import ProjectBuild
 from jenkins.models import Build
 
 logger = get_task_logger(__name__)
@@ -120,3 +123,80 @@ def process_project_dependency(build, dependency, project_dependency):
         dependency=dependency)
     projectbuild_dependency.build = build
     projectbuild_dependency.save()
+
+
+@shared_task
+def send_email_to_requestor(build_pk):
+    """
+    Send an Email to the requestor, if we have one, with details of the
+    completed build.
+    """
+    build = Build.objects.get(pk=build_pk)
+    logger.info("Located job %s\n" % build.job)
+
+    if not build.requested_by:
+        logger.info(
+            "No requestor on job %s, so not sending an Email\n" % build.job)
+        return build_pk
+
+    if not build.requested_by.email:
+        logger.info("No Email address for the requestor\n")
+        return build_pk
+
+    # Check to see if there is a project build and get the URL
+    url = projectbuild_url(build.build_id)
+    if not url:
+        # Use the link to the build instead
+        url = build.get_absolute_url()
+    url = urlparse.urljoin(get_base_url(), url)
+
+    # Send the Email to the requester
+    send_email(build, url)
+
+    return build_pk
+
+
+def projectbuild_url(build_key):
+    """
+    Checks to see if there is a projectbuild for a build_key.
+    """
+    build = ProjectBuild.objects.filter(build_key=build_key).first()
+    return build and build.get_absolute_url()
+
+
+def send_email(build, url):
+    """
+    Generate and send the Email to the requestor.
+    """
+    logger.info("Send build completion Email to %s for job %s\n" %
+                (build.requested_by.get_full_name(), build.job))
+
+    params = {
+        'job': build.job,
+        'number': build.number,
+        'build_id': build.build_id,
+        'phase': build.phase,
+        'status': build.status,
+        'full_url': url,
+    }
+    subject = "Build Complete for Job %s" % build.job
+    message = """The build for the following job is now complete:
+    Job: %(job)s %(number)s
+    Build ID: %(build_id)s
+    Phase: %(phase)s
+    Status: %(status)s
+    URL: %(full_url)s
+    """ % params
+
+    try:
+        build.requested_by.email_user(subject, message)
+    except Exception, e:
+        logger.exception(u"Error sending Email: %s", e)
+
+
+def get_base_url():
+    """
+    Get the base URL for the site.
+    """
+    current_site = Site.objects.get_current()
+    return urlparse.urlunparse(("http", current_site.domain, "/", "", "", ""))

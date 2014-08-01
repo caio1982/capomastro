@@ -1,14 +1,22 @@
 from __future__ import unicode_literals
+from smtplib import SMTPException
 
 from django.test import TestCase
+from django.core import mail
+from django.contrib.auth.models import User
+from django.test.utils import override_settings
+import mock
+
 from jenkins.models import Build
 
 from projects.helpers import build_project
 from projects.models import (
     ProjectDependency, ProjectBuildDependency, ProjectBuild)
 from projects.tests.factories import DependencyFactory, ProjectFactory
-from projects.tasks import process_build_dependencies
-from jenkins.tests.factories import BuildFactory
+from projects.tasks import (
+    process_build_dependencies, send_email_to_requestor, projectbuild_url,
+    get_base_url, send_email)
+from jenkins.tests.factories import BuildFactory, ArtifactFactory
 
 
 class ProcessBuildDependenciesTest(TestCase):
@@ -223,3 +231,95 @@ class ProcessBuildDependenciesTest(TestCase):
             [build, build],
             sorted([b.build for b in
                     ProjectBuildDependency.objects.all()]))
+
+
+class SendEmailTaskTest(TestCase):
+
+    def create_build_data(self, use_requested_by=True, email=None):
+        """
+        Create the test data for a build.
+        """
+        if use_requested_by:
+            user = User.objects.create_user("testing", email=email)
+        else:
+            user = None
+        project = ProjectFactory.create()
+        dependency = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+        projectbuild = build_project(project, queue_build=False)
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_key,
+            requested_by=user)
+        ProjectBuildDependency.objects.create(
+            build=build, projectbuild=projectbuild, dependency=dependency)
+        ArtifactFactory.create(build=build, filename="testing/testing.txt")
+        return projectbuild, build
+
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_send_email_to_requestor(self):
+        """
+        Send an email to the requestor after the build is complete.
+        """
+        projectbuild, build = self.create_build_data(email="user@example.com")
+        result = send_email_to_requestor(build.pk)
+
+        self.assertEqual(build.pk, result)
+        self.assertEqual(1, len(mail.outbox))
+
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_send_email_to_requestor_no_email(self):
+        """
+        Check that the task does not fail when the user has no Email.
+        """
+        projectbuild, build = self.create_build_data()
+        result = send_email_to_requestor(build.pk)
+
+        self.assertEqual(build.pk, result)
+        self.assertEqual(0, len(mail.outbox))
+
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_send_email_to_requestor_no_requestor(self):
+        """
+        Check that the task does not fail when there is no requestor.
+        """
+        projectbuild, build = self.create_build_data(use_requested_by=False)
+        result = send_email_to_requestor(build.pk)
+
+        self.assertEqual(build.pk, result)
+        self.assertEqual(0, len(mail.outbox))
+
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_send_email_with_send_error(self):
+        """
+        Check exception message is sent when a mail server is not configured.
+        """
+        projectbuild, build = self.create_build_data(email="user@example.com")
+
+        with mock.patch.object(
+                User, "email_user", side_effect=SMTPException()) as mock_send:
+            with mock.patch("projects.tasks.logger.exception") as mock_log:
+                send_email(build, "")
+
+        self.assertEqual(0, len(mail.outbox))
+        self.assertTrue(mock_send.called)
+        mock_log.assert_called_once_with(
+            "Error sending Email: %s", mock_send.side_effect)
+
+    def test_projectbuild_url(self):
+        """
+        Check the URL returned for a projectbuild.
+        """
+        projectbuild, build = self.create_build_data(email="user@example.com")
+
+        url = projectbuild_url(build.build_id)
+        self.assertIsNotNone(url)
+        self.assertEquals(url, projectbuild.get_absolute_url())
+
+    def test_get_base_url(self):
+        """
+        Check that the base URL is returned.
+        """
+        base_url = get_base_url()
+        self.assertIsNotNone(base_url)
+        self.assertTrue(isinstance(base_url, basestring))
