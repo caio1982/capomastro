@@ -14,8 +14,8 @@ def link_to_current_if_required(projectbuild, item, transport):
     If this build is a projectbuild build, then we should link the current
     projectbuild to the "current" directory.
 
-    If this build is not a projectbuild, it's safe to link the current directory
-    after this build.
+    If this build is not a projectbuild, it's safe to link the current
+    directory after this build.
     """
     if projectbuild:
         if projectbuild.phase == Build.FINALIZED:

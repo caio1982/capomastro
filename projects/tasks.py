@@ -97,14 +97,26 @@ def create_projectbuilds_for_autotracking(build):
                 auto_track=True):
             logging.debug("Processing %s", project_dependency)
             if (build_dependency is not None and
-                    build_dependency.projectbuild.project == project_dependency.project):
+                    build_dependency.projectbuild.project ==
+                        project_dependency.project):
                 continue
-            logging.debug("  autocreating projectbuild")
-            # We have a Project with a an auto-tracked element.
-            projectbuild = build_project(
-                project_dependency.project, dependencies=None,
-                queue_build=False, automated=True)
-            projectbuild_dependency = projectbuild.dependencies.get(
-                dependency=dependency)
-            projectbuild_dependency.build = build
-            projectbuild_dependency.save()
+            else:
+                process_project_dependency(
+                    build, dependency, project_dependency)
+
+
+def process_project_dependency(build, dependency, project_dependency):
+    """
+    Create a new projectbuild, without building the dependencies, and associate
+    the projectbuild_dependency for the dependency associated with the build
+    we're processing.
+    """
+    logging.debug("  autocreating projectbuild")
+    # We have a Project with a an auto-tracked element.
+    projectbuild = build_project(
+        project_dependency.project, dependencies=None,
+        queue_build=False, automated=True)
+    projectbuild_dependency = projectbuild.dependencies.get(
+        dependency=dependency)
+    projectbuild_dependency.build = build
+    projectbuild_dependency.save()
