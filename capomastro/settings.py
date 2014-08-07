@@ -25,6 +25,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
 
     'south',
     'bootstrap3',
@@ -111,11 +112,15 @@ REST_FRAMEWORK = {
     ]
 }
 
+SITE_ID = 1
+
 try:
     from local_settings import *  # noqa
 except ImportError, e:
     pass
 
 from archives.tasks import process_build_artifacts, generate_checksums
-from projects.tasks import process_build_dependencies
-POST_BUILD_TASKS=[process_build_dependencies, process_build_artifacts, generate_checksums]
+from projects.tasks import process_build_dependencies, send_email_to_requestor
+
+POST_BUILD_TASKS = [process_build_dependencies, process_build_artifacts,
+                    generate_checksums, send_email_to_requestor]

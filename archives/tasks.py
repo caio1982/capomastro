@@ -118,6 +118,9 @@ def generate_checksums(build_pk):
     """
     build = Build.objects.get(pk=build_pk)
     archive = get_default_archive()
+    if not archive:
+        logging.info("No default archiver - no checksum to generate")
+        return build_pk
     transport = archive.get_transport()
     archived_artifacts = archive.get_archived_artifacts_for_build(build)
     transport.start()
@@ -126,3 +129,4 @@ def generate_checksums(build_pk):
             logging.info("Generating checksums for %s" % artifact)
             transport.generate_checksums(artifact)
     transport.end()
+    return build_pk

@@ -1,3 +1,4 @@
+from django.core.urlresolvers import reverse
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 from django.contrib.auth.models import User
@@ -109,6 +110,12 @@ class Build(models.Model):
 
         log = self.console_log.splitlines()[-self.CONSOLE_TAIL_LINES:]
         return "\n".join(log)
+
+    def get_absolute_url(self):
+        """
+        Return the URL for the ProjectBuild.
+        """
+        return reverse("build_detail", kwargs={"pk": self.pk})
 
 
 @python_2_unicode_compatible

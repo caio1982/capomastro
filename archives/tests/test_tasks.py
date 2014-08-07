@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from io import StringIO
+import logging
 import os
 import shutil
 import tempfile
@@ -275,6 +276,37 @@ class GenerateChecksumsTaskTest(TestCase):
         self.assertEqual(
             ["START", "Checksums generated for %s" % archived_artifact, "END"],
             transport.log)
+
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_generate_checksums_no_transport(self):
+        """
+        generate_checksums should call the generate_checksums method
+        on the transport from the archive with the build to generate
+        the checksums for. If there is no default archive, a checksum
+        cannot be calculated and there should be an early exit.
+        """
+        project = ProjectFactory.create()
+        dependency = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+        projectbuild = build_project(project, queue_build=False)
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_key)
+        ProjectBuildDependency.objects.create(
+            build=build, projectbuild=projectbuild, dependency=dependency)
+        ArtifactFactory.create(build=build, filename="testing/testing.txt")
+
+        # No archive defined
+        transport = LoggingTransport(None)
+
+        # Mock the logger
+        with mock.patch.object(logging, "info", return_value=None) as mock_log:
+            return_value = generate_checksums(build.pk)
+
+        self.assertEqual([], transport.log)
+        self.assertEqual(build.pk, return_value)
+        mock_log.assert_called_once_with(
+            "No default archiver - no checksum to generate")
 
 
 class ProcessBuildArtifactsTaskTest(TestCase):

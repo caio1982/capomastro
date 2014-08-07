@@ -1,4 +1,5 @@
 import uuid
+from django.core.urlresolvers import reverse
 
 from django.db import models
 from django.contrib.auth.models import User
@@ -192,6 +193,15 @@ class ProjectBuild(models.Model):
             self.build_id = generate_projectbuild_id(self)
 
         super(ProjectBuild, self).save(**kwargs)
+
+    def get_absolute_url(self):
+        """
+        Return the URL for the ProjectBuild.
+        """
+        return reverse("project_projectbuild_detail",
+                       kwargs={
+                           "project_pk": self.project.pk, "build_pk": self.pk
+                       })
 
 
 def generate_projectbuild_id(projectbuild):

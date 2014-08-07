@@ -42,6 +42,7 @@ def push_job_to_jenkins(job_pk):
     else:
         client.create_job(job.name, xml)
 
+
 def extract_requestor_from_params(params):
     """
     Return the requesting user or None if we couldn't find a REQUESTOR in the
