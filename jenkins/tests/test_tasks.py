@@ -128,11 +128,11 @@ class ImportBuildTaskTest(TestCase):
         parameters = [{"name": "BUILD_ID", "value": ""},
                       {"name": "REQUESTOR", "value": "unknown"}]
 
-        with mock.patch("jenkins.tasks.logger") as mock_logger:
+        with mock.patch("jenkins.tasks.logging") as mock_logging:
                 user = extract_requestor_from_params(parameters)
 
         self.assertIsNone(user)
-        mock_logger.info.assert_called_once_With("Unknown REQUESTOR unknown")
+        mock_logging.info.assert_called_once_With("Unknown REQUESTOR unknown")
 
     @override_settings(
         CELERY_ALWAYS_EAGER=True, NOTIFICATION_HOST="http://example.com")
@@ -158,7 +158,7 @@ class ImportBuildTaskTest(TestCase):
                       {"name": "REQUESTOR", "value": "testing"}]
         mock_build.get_actions.return_value = {"parameters": parameters}
 
-        with mock.patch("jenkins.tasks.logger") as mock_logger:
+        with mock.patch("jenkins.tasks.logging") as mock_logging:
             with mock.patch("jenkins.models.Jenkins") as mock_jenkins:
                 mock_jenkins.return_value.get_job.return_value = mock_job
                 result = import_build_for_job(build.pk)
@@ -167,7 +167,7 @@ class ImportBuildTaskTest(TestCase):
         mock_jenkins.assert_called_with(
             job.server.url, username=u"root", password=u"testing")
 
-        mock_logger.assert_has_calls(
+        mock_logging.assert_has_calls(
             [mock.call.info("Located job %s\n" % job),
              mock.call.info("Using server at %s\n" % job.server.url),
              mock.call.info("Processing build details for %s #5" % job)])
