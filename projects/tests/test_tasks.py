@@ -298,12 +298,12 @@ class SendEmailTaskTest(TestCase):
 
         with mock.patch.object(
                 User, "email_user", side_effect=SMTPException()) as mock_send:
-            with mock.patch("projects.tasks.logger.exception") as mock_log:
+            with mock.patch("projects.tasks.logging") as mock_logging:
                 send_email(build, "")
 
         self.assertEqual(0, len(mail.outbox))
         self.assertTrue(mock_send.called)
-        mock_log.assert_called_once_with(
+        mock_logging.exception.assert_called_once_with(
             "Error sending Email: %s", mock_send.side_effect)
 
     def test_projectbuild_url(self):

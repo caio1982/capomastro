@@ -1,18 +1,16 @@
 import logging
+
 import urlparse
 
 from django.utils import timezone
 from django.contrib.sites.models import Site
 
-from celery.utils.log import get_task_logger
 from celery import shared_task
 
 from projects.helpers import build_project
 from projects.models import ProjectBuildDependency
 from projects.models import ProjectBuild
 from jenkins.models import Build
-
-logger = get_task_logger(__name__)
 
 
 def get_projectbuild_dependency_for_build(build):
@@ -90,7 +88,7 @@ def create_projectbuilds_for_autotracking(build):
     If we have have projects that are autotracking the dependency associated
     with this build, then we should create project builds for them.
     """
-    logging.debug("Autocreating projectbuilds for build %s", build)
+    logging.info("Autocreating projectbuilds for build %s", build)
     build_dependency = get_projectbuild_dependency_for_build(build)
     # At this point, we need to identify Projects which have this
     # dependency and create ProjectBuilds for them.
@@ -132,15 +130,13 @@ def send_email_to_requestor(build_pk):
     completed build.
     """
     build = Build.objects.get(pk=build_pk)
-    logger.info("Located job %s\n" % build.job)
-
     if not build.requested_by:
-        logger.info(
+        logging.info(
             "No requestor on job %s, so not sending an Email\n" % build.job)
         return build_pk
 
     if not build.requested_by.email:
-        logger.info("No Email address for the requestor\n")
+        logging.info("No Email address for the requestor\n")
         return build_pk
 
     # Check to see if there is a project build and get the URL
@@ -168,8 +164,10 @@ def send_email(build, url):
     """
     Generate and send the Email to the requestor.
     """
-    logger.info("Send build completion Email to %s for job %s\n" %
-                (build.requested_by.get_full_name(), build.job))
+    logging.info(
+        "Send build completion Email to %s (%s) for job %s\n" %
+        (build.requested_by.get_full_name(), build.requested_by.email,
+         build.job))
 
     params = {
         'job': build.job,
@@ -180,7 +178,7 @@ def send_email(build, url):
         'full_url': url,
     }
     subject = "Build Complete for Job %s" % build.job
-    message = """The build for the following job is now complete:
+    message = """The build for the following job is now complete:\n
     Job: %(job)s %(number)s
     Build ID: %(build_id)s
     Phase: %(phase)s
@@ -191,7 +189,7 @@ def send_email(build, url):
     try:
         build.requested_by.email_user(subject, message)
     except Exception, e:
-        logger.exception(u"Error sending Email: %s", e)
+        logging.exception(u"Error sending Email: %s", e)
 
 
 def get_base_url():
