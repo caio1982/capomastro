@@ -1,36 +1,25 @@
 # -*- coding: utf-8 -*-
-from south.utils import datetime_utils as datetime
-from south.db import db
-from south.v2 import SchemaMigration
-from django.db import models
+from __future__ import unicode_literals
+
+from django.db import models, migrations
 
 
-class Migration(SchemaMigration):
+class Migration(migrations.Migration):
 
-    def forwards(self, orm):
-        # Adding model 'SshKeyPair'
-        db.create_table(u'credentials_sshkeypair', (
-            (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('label', self.gf('django.db.models.fields.CharField')(max_length=128)),
-            ('public_key', self.gf('django.db.models.fields.TextField')()),
-            ('private_key', self.gf('django.db.models.fields.TextField')()),
-        ))
-        db.send_create_signal(u'credentials', ['SshKeyPair'])
+    dependencies = [
+    ]
 
-
-    def backwards(self, orm):
-        # Deleting model 'SshKeyPair'
-        db.delete_table(u'credentials_sshkeypair')
-
-
-    models = {
-        u'credentials.sshkeypair': {
-            'Meta': {'object_name': 'SshKeyPair'},
-            u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'label': ('django.db.models.fields.CharField', [], {'max_length': '128'}),
-            'private_key': ('django.db.models.fields.TextField', [], {}),
-            'public_key': ('django.db.models.fields.TextField', [], {})
-        }
-    }
-
-    complete_apps = ['credentials']
+    operations = [
+        migrations.CreateModel(
+            name='SshKeyPair',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('label', models.CharField(max_length=128)),
+                ('public_key', models.TextField()),
+                ('private_key', models.TextField()),
+            ],
+            options={
+            },
+            bases=(models.Model,),
+        ),
+    ]
