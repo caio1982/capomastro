@@ -1,12 +1,11 @@
+import logging
+
 from django.contrib.auth.models import User
 
-from celery.utils.log import get_task_logger
 from celery import shared_task
 
 from jenkins.models import Job, Build, Artifact
 from jenkins.utils import get_job_xml_for_upload
-
-logger = get_task_logger(__name__)
 
 
 @shared_task
@@ -53,7 +52,7 @@ def extract_requestor_from_params(params):
             try:
                 return User.objects.get(username=param["value"])
             except User.DoesNotExist:
-                logger.info("Unknown REQUESTOR %s", param["value"])
+                logging.info("Unknown REQUESTOR %s", param["value"])
                 return
 
 
@@ -63,10 +62,10 @@ def import_build_for_job(build_pk):
     Import a build for a job.
     """
     build = Build.objects.get(pk=build_pk)
-    logger.info("Located job %s\n" % build.job)
+    logging.info("Located job %s\n" % build.job)
 
     client = build.job.server.get_client()
-    logger.info("Using server at %s\n" % build.job.server.url)
+    logging.info("Using server at %s\n" % build.job.server.url)
 
     jenkins_job = client.get_job(build.job.name)
     build_result = jenkins_job.get_build(build.number)
@@ -84,7 +83,7 @@ def import_build_for_job(build_pk):
     }
     requestor = extract_requestor_from_params(build_details["parameters"])
     build_details["requested_by"] = requestor
-    logger.info("Processing build details for %s #%d" % (
+    logging.info("Processing build details for %s #%d" % (
         build.job, build.number))
     Build.objects.filter(
         job=build.job, number=build.number).update(**build_details)
@@ -95,7 +94,7 @@ def import_build_for_job(build_pk):
             "url": artifact.url,
             "build": build
         }
-        logger.info("Importing artifact %s", artifact_details)
+        logging.info("Importing artifact %s", artifact_details)
         Artifact.objects.create(**artifact_details)
     return build_pk
 
