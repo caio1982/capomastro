@@ -9,6 +9,6 @@ before_script:
   - psql -c 'create database capomastro;' -U postgres
   - cp capomastro/local_settings.py.example capomastro/local_settings.py
   - sed -i -e 's/getpass\.getuser()/\"postgres\"/g' capomastro/local_settings.py
-  - python manage.py syncdb --migrate --noinput
+  - python manage.py migrate --noinput
 script:
   - python manage.py test
