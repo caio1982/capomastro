@@ -1,7 +1,6 @@
 import json
 
 from django.db import models
-from south.modelsinspector import add_introspection_rules
 
 
 class JSONField(models.Field):
@@ -33,5 +32,3 @@ class JSONField(models.Field):
                 lookup_type, value)
         else:
             raise TypeError("Lookup type %s is not supported." % lookup_type)
-
-add_introspection_rules([], ["^jenkins\.fields\.JSONField"])
