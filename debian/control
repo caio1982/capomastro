@@ -1,0 +1,14 @@
+Source: capomastro
+Section: misc
+Priority: optional
+Maintainer: CE Infrastructure <ce-infrastructure@lists.canonical.com>
+Vcs-Browser: https://github.com/capomastro
+Build-Depends: debhelper, python, python-setuptools, dh-python
+Standards-Version: 3.9.5
+
+Package: capomastro
+Architecture: all
+Homepage: https://github.com/capomastro
+Depends: ${misc:Depends}, ${python:Depends}, ${shlibs:Depends}, postgresql, rabbitmq-server, python-tz, python-celery (>= 3.1.11), python-psycopg2 (>= 2.5.2), python-paramiko (>= 1.13.0), python-jenkinsapi (>= 0.2.19), python-django-braces (>= 1.4.0), python-django (>= 1.7.0), python-djangorestframework (>= 2.3.13), python-django-bootstrap3 (>= 4.2.0)
+Suggests: python-webtest (>= 1.7.7), python-factory-boy (>= 2.3.1), python-mock (>= 1.0.1), python-django-webtest (>= 1.7.7), python-httmock (>= 1.2.2), python-flake8, python-tox
+Description: Jenkins best friend

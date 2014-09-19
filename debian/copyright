@@ -1,0 +1,8 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Capomastro
+Upstream-Contact: CE Infrastructure <ce-infrastructure@lists.canonical.com>
+Source: https://github.com/capomastro
+
+Files: *
+Copyright: 2014 Canonical Ltd.
+License: MIT
