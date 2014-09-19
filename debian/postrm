@@ -1,0 +1,25 @@
+#!/bin/sh
+
+set -e
+
+NAME=capomastro
+
+if getent passwd | grep -q ${NAME}; then
+   	if [ -x "/etc/init.d/$NAME" ]; then
+     	          service $NAME stop || exit $?
+        fi
+
+	if pgrep -u ${NAME} > /dev/null 2>&1; then
+		killall -u ${NAME} && killall -u ${NAME}
+	fi
+
+	deluser --force --quiet ${NAME}
+fi
+
+if getent group | grep -q ${NAME}; then
+	delgroup --force --quiet ${NAME}
+fi
+
+#DEBHELPER#
+
+exit 0
