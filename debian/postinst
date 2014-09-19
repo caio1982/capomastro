@@ -5,11 +5,11 @@ set -e
 NAME=capomastro
 
 if ! getent group | grep -q ${NAME}; then
-	groupadd --quiet --system -f ${NAME}
+	groupadd --system -f ${NAME}
 fi
 
 if ! getent passwd | grep -q ${NAME}; then
-	useradd --quiet --system -g ${NAME} ${NAME}
+	useradd --system -g ${NAME} ${NAME}
 fi
 
 chown ${NAME}:${NAME} /var/log/${NAME}
