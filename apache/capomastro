@@ -1,0 +1,23 @@
+<VirtualHost *:80>
+        ServerName capomastro
+
+        #Alias /assets/admin /usr/share/pyshared/django/contrib/admin/static/admin
+        #Alias /assets /usr/share/queuemanager/static/
+
+        WSGIScriptAlias / /usr/lib/python2.7/dist-packages/capomastro/wsgi.py
+
+        <Directory />
+                Options FollowSymLinks
+                AllowOverride None
+		Require all granted
+
+		# For older apaches only
+		# Order allow,deny
+		# Allow from all
+        </Directory>
+
+        CustomLog /var/log/capomastro/capomastro.access-log combined
+        ErrorLog /var/log/capomastro/capomastro.error-log
+
+        LogLevel debug
+</VirtualHost>
