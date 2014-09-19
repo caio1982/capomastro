@@ -1,0 +1,104 @@
+#! /bin/sh
+
+### BEGIN INIT INFO
+# Provides:          capomastro
+# Required-Start:    $remote_fs $network $syslog
+# Required-Stop:     $remote_fs $network $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Capomastro daemon
+# Description:       Jenkins best friend
+### END INIT INFO
+
+# Author: Caio Begotti <caio.begotti@canonical.com>
+
+NAME=capomastro
+DESC="Capomastro, Jenkins best friend"
+DAEMON=/usr/bin/$NAME
+DAEMON_VARS="DJANGO_SETTINGS_MODULE=capomastro.settings"
+
+#FIXME: should use apache and celery instead
+DAEMON_ARGS="$DAEMON runserver localhost:80"
+
+PIDFILE=/var/run/$NAME/$NAME.pid
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin
+SCRIPTNAME=/etc/init.d/$NAME
+
+RUN_AS=capomastro
+
+[ -x "$DAEMON" ] || exit 0
+
+# Load verbose setting and other rcS variables
+. /lib/init/vars.sh
+
+# Functions like log_
+. /lib/lsb/init-functions
+
+RUN=no
+
+# Include defaults if available
+[ -r /etc/default/$NAME ] && . /etc/default/$NAME
+
+[ -d /var/run/$NAME ] || mkdir -p /var/run/$NAME
+
+do_start()
+{
+  start-stop-daemon --start --quiet --pidfile $PIDFILE --chuid $RUN_AS --exec $DAEMON --test > /dev/null || return 1
+  start-stop-daemon -b --start --quiet -m --pidfile $PIDFILE --chuid $RUN_AS --exec $DAEMON -- $DAEMON_ARGS || return 2
+}
+
+do_stop () {
+  start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE --name $NAME
+
+  RETVAL="$?"
+  [ "$RETVAL" = 2 ] && return 2
+
+  rm -f $PIDFILE
+  return "$RETVAL"
+}
+
+case "$1" in
+  start)
+	[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+	do_start
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
+  stop)
+	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	do_stop
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
+  status)
+	status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
+	;;
+  restart|force-reload)
+	log_daemon_msg "Restarting $DESC" "$NAME"
+	do_stop
+	case "$?" in
+	  0|1)
+		do_start
+		case "$?" in
+			0) log_end_msg 0 ;;
+			1) log_end_msg 1 ;; # Old process is still running
+			*) log_end_msg 1 ;; # Failed to start
+		esac
+		;;
+	  *)
+		# Failed to stop
+		log_end_msg 1
+		;;
+	esac
+	;;
+  *)
+	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+	exit 3
+	;;
+esac
+
+:
