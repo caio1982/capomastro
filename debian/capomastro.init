@@ -14,11 +14,9 @@
 
 NAME=capomastro
 DESC="Capomastro, Jenkins best friend"
-DAEMON=/usr/bin/$NAME
+DAEMON=/usr/bin/celery
 DAEMON_VARS="DJANGO_SETTINGS_MODULE=capomastro.settings"
-
-#FIXME: should use apache and celery instead
-DAEMON_ARGS="$DAEMON runserver localhost:80"
+DAEMON_ARGS="-A $NAME worker -l info"
 
 PIDFILE=/var/run/$NAME/$NAME.pid
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin
