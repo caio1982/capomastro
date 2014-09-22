@@ -1,8 +1,7 @@
 -r requirements.txt
 django-webtest==1.7.7
-factory-boy>=2.0.2
+factory-boy==2.4.1
 mock==1.0.1
 httmock==1.2.2
 WebTest==2.0.15
-tox==1.6.0
 flake8
