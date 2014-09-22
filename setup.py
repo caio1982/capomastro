@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 #coding: utf-8
 
+from pip.req import parse_requirements
 from distutils.core import setup
 from setuptools import find_packages
+
+install_reqs = parse_requirements('requirements.txt')
+reqs = [str(ir.req) for ir in install_reqs]
 
 setup(
 	name = "capomastro",
@@ -16,7 +20,6 @@ setup(
 	include_package_data = True,
 	packages = find_packages(),
 	# former manage.py
-	scripts = ['scripts/capomastro']
-	# part of package's depends now
-	# install_requires =
+	scripts = ['scripts/capomastro'],
+	install_requires = reqs
 )
