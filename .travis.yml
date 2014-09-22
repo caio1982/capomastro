@@ -4,9 +4,9 @@ services:
 python:
   - 2.7
 before_install:
-  - sudo apt-get install -qq python-tox
+  - sudo pip install tox
 before_script:
   - psql -c 'create database capomastro;' -U postgres
   - sed -i -e 's/getpass\.getuser()/\"postgres\"/g' capomastro/local_settings.py
 script:
-  - tox
+  - /usr/local/bin/tox
